@@ -4,7 +4,8 @@
 // @description Přidá copy/paste operace do HERODESova generátoru grafů
 // @include     http://herodes.feld.cvut.cz/mereni/grafy-new/vloz.php
 // @include     file:///C:/MYSELF/programing/webprograming/fyzika-grafy.html
-// @version     1
+// @version     2014.10.26.14.57
+// @updateURL   https://raw.githubusercontent.com/Darker/userscripts/master/CopyPaste_for_herodes.user.js
 // @grant       none
 // ==/UserScript==
 //Globalni mrdky

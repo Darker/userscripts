@@ -2,10 +2,11 @@
 // @name        CopyPaste for herodes
 // @namespace   whatever
 // @description Přidá copy/paste operace do HERODESova generátoru grafů
-// @include     http://herodes.feld.cvut.cz/mereni/grafy-new/vloz.php
+// @include     http://herodes.feld.cvut.cz/mereni/grafy-new/vloz.php*
 // @include     file:///C:/MYSELF/programing/webprograming/fyzika-grafy.html
-// @version     2014.10.26.14.57
+// @version     2014.11.04.18.47
 // @updateURL   https://raw.githubusercontent.com/Darker/userscripts/master/CopyPaste_for_herodes.user.js
+// @downloadURL   https://raw.githubusercontent.com/Darker/userscripts/master/CopyPaste_for_herodes.user.js
 // @grant       none
 // ==/UserScript==
 //Globalni mrdky
@@ -116,12 +117,14 @@ Prubeh.prototype.insertTableAt = function(table,x,y) {
     //Optimalizace
     var collection = this.bunky;
     //Rozsirit tabulku
-    if(rows.length+y>collection.length) {
+    if(rows.length+y>collection.length+1) {
       this.extend(rows.length+y-collection.length-1);
     }
     //A loop
     for(var i=0,l=rows.length; i<l; i++) {
-      match = rows[i].match(row_regexp); /*
+      match = rows[i].match(row_regexp); 
+      console.log(match);
+      /*
       //Je treba rozsirovat po 1, protoze nevime, zda vsechny radky jseou akceptovatelne
       if(collection.length<=y+i)
         this.extend(1);          */
@@ -138,6 +141,8 @@ Prubeh.prototype.insertTableAt = function(table,x,y) {
 }
 //Pocet poli, ktere je potreba pridat (nebo odebrat)
 Prubeh.prototype.extend = function(fields, position) {
+  if(fields==0)
+    return console.warn("Trying to extend table by 0!");
   if(typeof position!="number") {
     position = this.bunky.length;
   }
@@ -165,7 +170,7 @@ Prubeh.prototype.extend = function(fields, position) {
   }
   else {
     //Zaporne monzstvi - odebrat bunky
-    throw new Error("Not implemented yet!");
+    throw new Error("Not implemented yet! (you're trying to extend table by "+fields);
   }
 }
 

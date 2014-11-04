@@ -8,6 +8,7 @@
 // @updateURL   https://raw.githubusercontent.com/Darker/userscripts/master/CopyPaste_for_herodes.user.js
 // @downloadURL   https://raw.githubusercontent.com/Darker/userscripts/master/CopyPaste_for_herodes.user.js
 // @grant       none
+// @author      Jakub Mareda
 // ==/UserScript==
 //Globalni mrdky
 var prubehy = [];

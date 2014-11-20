@@ -4,8 +4,11 @@
 // @description Allows you to paste any image directly into SE question textarea
 // @include     */questions/ask
 // @version     2014.11.20.12.18
-// @
-// @grant       none
+// @updateURL   https://github.com/Darker/userscripts/raw/master/Paste_images_in_SE_sites.user.js
+// @downloadURL https://github.com/Darker/userscripts/raw/master/Paste_images_in_SE_sites.user.js
+// @icon        http://i.stack.imgur.com/UlaAb.png
+// @author      Jakub Mareda
+// @grant       none                   
 // ==/UserScript==
 
 /** CREATING DOM REFFERENCES **/
@@ -185,15 +188,11 @@ function uploadToImgur(blob) {
   var end = Math.min.apply(Math, lastSelection);
   //The beginning just after ']('
   lastSelection[0] = end + 2;
-  //The beginning is after '['
+  //The end is after the loading message
   lastSelection[1] = end + 2 + "loading url...".length;
 
-  
-  //var animationOffset = 
-
-  
   //Temporarily override using setTimeout for testing please
-  //*
+  /* */
   
   req.send(formdata);
   /*  * /
@@ -557,7 +556,7 @@ function EditorControler(field) {
    *     selOverride: the selection that should be replaced, instead of
    *                  cursor selection             
    **/      
-EditorControler.prototype.insert = function(inserted, selection, wrap_selected, wrap, selOverride) {
+EditorControler.prototype.insert = function(inserted, selection, wrap_selected, defaultMatches, selOverride) {
   var sel = selOverride?selOverride:this.getSelection();
   
   //console.log("Selection:",sel);
@@ -572,7 +571,9 @@ EditorControler.prototype.insert = function(inserted, selection, wrap_selected, 
   //Here I'm just avoiding many repeated code in else {}
   var insert_done = false;
   //Will try to wrap the selected text instead of replacing it
-  if(wrap_selected!=null&&text[1].length>0) {
+  //Notice that even if selected fragment is empty, there are necessary calculations
+  //to be done!
+  if(wrap_selected!=null/*&&text[1].length>0*/) {
     if(wrap_selected instanceof RegExp) {
       //console.log("Regexping the insert.");
       //Split the insertment by the insert marks $$
@@ -590,13 +591,14 @@ EditorControler.prototype.insert = function(inserted, selection, wrap_selected, 
           pos_offset = selection-chars-i;
 
           pos_chunk=i;
-          //console.log("pos_offset = ", pos_offset);
-          //console.log("pos_chunk = ", pos_offset);
+          console.log("pos_offset = ", pos_offset);
+          console.log("pos_chunk = ", pos_offset);
           break;
         }  
       }
       //Match stuff in selected text
       var matches = text[1].match(wrap_selected); 
+
       if(matches!=null) {
 
         //Apply matches
@@ -619,21 +621,12 @@ EditorControler.prototype.insert = function(inserted, selection, wrap_selected, 
       else {
         text[1] = inserted.join("");
         insert_done = true;
-      }
-    }
-    if(!insert_done) {
-      //Add length of added characters to position offset
-      selection+=2+text[1].length;
-      if(typeof wrap=="string") {
-        wrap = [wrap.substr(0, Math.floor(wrap.length/2)),wrap.substr(Math.floor(wrap.length/2))];
-      }
-      else {
-        wrap = ["{", "}"];
-      }
-      //console.log(text);
-      //Simply put text before and wrap it in () for sure
-      text[1] = wrap[0]+text[1]+wrap[1]+inserted;
-      insert_done = true;        
+        //Substract `pos_chunk` from `selection`
+        //this is necessary to make the offset mapping same even if there are no
+        //matches
+        selection-=pos_chunk;
+        console.log(selection);
+      }    
     }
   }
   //Replace any selected text

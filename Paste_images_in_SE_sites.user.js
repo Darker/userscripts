@@ -11,6 +11,8 @@
 // @grant       none                   
 // ==/UserScript==
 
+var WARN_IMG_WIDTH = 650;
+
 /** CREATING DOM REFFERENCES **/
 //Create div for pasted images
 var paste = document.createElement("div");
@@ -244,7 +246,7 @@ function applyImage(img) {
   canvas.height = height;
   //Copy given image on canvas
   ctx.drawImage(img,0,0);
-  if(width>650) {
+  if(width>WARN_IMG_WIDTH) {
     if(confirm("Image is unnecesarily big. Do you want to resize it before processing?"))
       canvasResizeTo(800,800,canvas);
   }

@@ -17,8 +17,8 @@ var WARN_IMG_WIDTH = 650;
 //Create div for pasted images
 var paste = document.createElement("div");
 paste.setAttribute("contenteditable", "true");
-paste.style.position="fixed";
-paste.style.top="-20px";
+paste.style.position = "fixed";
+paste.style.top = "-20px";
 paste.style.maxWidth =
 paste.style.maxHeight = "15px";
 paste.style.overflow = "hidden";
@@ -63,7 +63,7 @@ function loadScript(scripts, name, index) {
   //Iterate on error
   req.onerror = function() {
     if(index+1<scripts.length) {
-      loadScript(scripts, name, index);
+      loadScript(scripts, name, index+1);
     }
     else {
       throw new Error("All sources failed for '"+name+"'.");
@@ -103,7 +103,7 @@ paste.addEventListener('paste', function(event){
     //Read the file
     applyFile(files[0].getAsFile? files[0].getAsFile():files[0]);
     //Debug
-    console.log("File found and processed.");
+  //console.log("File found and processed.");
     //Focus back on the input
     input.focus();
     //The operation is eventually finished when some text appears in `paste` 
@@ -115,7 +115,7 @@ paste.addEventListener('paste', function(event){
   lastPaste = event;
   lastPaste.target = input;
   lastPasteData = lastPaste.clipboardData.getData("text/plain");
-  console.log("Canceled event:", lastPaste, " (text data: \""+lastPaste.clipboardData.getData("text/plain")+"\")");
+//console.log("Canceled event:", lastPaste, " (text data: \""+lastPaste.clipboardData.getData("text/plain")+"\")");
 });
 paste.addEventListener('input', function(event) {
   var images = this.getElementsByTagName("img");
@@ -130,15 +130,15 @@ paste.addEventListener('input', function(event) {
     lastPaste = null;   
   }
   else {
-    console.log("No image in HTML.");
+  //console.log("No image in HTML.");
   }
   this.innerHTML = "";
   //Focus back on the input
   input.focus();
   //The paste event now must be dispatched in textarea:
   if(lastPaste!=null) {
-    console.log("Old event: ", lastPaste, " (text data: \""+lastPaste.clipboardData.getData("text/plain")+"\")");
-    console.log("Old data: ",lastPasteData);
+  //console.log("Old event: ", lastPaste, " (text data: \""+lastPaste.clipboardData.getData("text/plain")+"\")");
+  //console.log("Old data: ",lastPasteData);
     //Create new event that will inherit original event's properties
     //var e = new ClipboardEvent("paste");//document.createEvent(/*"ClipboardEvent"*/"Event");        
     //Inherit properties
@@ -157,7 +157,7 @@ paste.addEventListener('input', function(event) {
 input.addEventListener("keydown", function(e) {
   if(e.keyCode==86&&e.ctrlKey) {
     paste.focus();
-    console.log("Focusing the div");
+  //console.log("Focusing the div");
   }
 });
 
@@ -180,33 +180,39 @@ function uploadToImgur(blob) {
   
   
   //Start loading animation
-  editor.insert("![$$](loading url...)", 3, /(.*)/);
+  lastSelection = editor.insert("![$$](loading url...)", [2,3], /(.*)/, "image description");
+  
+
   //At this point save the cursor selection
   //That will allow to insert text to the current position
   //while user is typping
-  //Dynamic selection! must be cleared!!!
-  lastSelection = editor.getSelection(true);           //The cursor is right after the thext wrapped in []
+  //Dynamic selection! must be detached!!!
+  lastSelection.attach(editor);
   
-  var end = Math.min.apply(Math, lastSelection);
+  var end = Math.max.apply(Math, lastSelection);
   //The beginning just after ']('
-  lastSelection[0] = end + 2;
+  lastSelection[0] = end - "loading url...".length - 1;
   //The end is after the loading message
-  lastSelection[1] = end + 2 + "loading url...".length;
+  lastSelection[1] = end - 1;
+  //Characters typed next to this selection should end up inside of it
+  lastSelection.open = true;
 
   //Temporarily override using setTimeout for testing please
   /* */
-  
-  req.send(formdata);
-  /*  * /
-  setTimeout(
-    function() {
-      uploadOnload.apply(
-        {responseText: "window.parent.closeDialog(\"http://u8.8u.cz/randimg/random.png\");"},
-        []
-      );
-    },
-    3000
-  );    // */
+  if(!window.TESTING_SE_PASTE) {
+    req.send(formdata);
+  }
+  else {
+    setTimeout(
+      function() {
+        uploadOnload.apply(
+          {responseText: "window.parent.closeDialog(\"http://u8.8u.cz/randimg/random.png\");"},
+          []
+        );
+      },
+      3000
+    );
+  }    
 }
 function uploadOnload() {
   var regex = /window\.parent\.closeDialog\("([^"]+)"\);/;
@@ -246,7 +252,7 @@ function applyImage(img) {
   canvas.height = height;
   //Copy given image on canvas
   ctx.drawImage(img,0,0);
-  if(width>WARN_IMG_WIDTH) {
+  if(width>WARN_IMG_WIDTH && !window.TESTING_SE_PASTE) {
     if(confirm("Image is unnecesarily big. Do you want to resize it before processing?"))
       canvasResizeTo(800,800,canvas);
   }
@@ -550,16 +556,24 @@ function EditorControler(field) {
   /**
    *  Param:
    *     inserted: the string to be inserted
+   *               use $$ to retrieve matches from wrap_selected
+   *      
    *     selection: where to put the cursor (relativelly to inserted)
    *     wrap_selected: regular expression to replace in selected text
-   *                    use $$ to retrieve matches in first argument
-   *      
-   *                    true to wrap selected text in () or wrap     
+
+   *     defaultMatches: if no match is fount of if match is "", default match will be picked
+   *                     order of this array applies to order of $$ in first parameter    
    *     selOverride: the selection that should be replaced, instead of
    *                  cursor selection             
    **/      
-EditorControler.prototype.insert = function(inserted, selection, wrap_selected, defaultMatches, selOverride) {
+EditorControler.prototype.insert = function(inserted, selection, wrap_selected, default_matches, selOverride) {
   var sel = selOverride?selOverride:this.getSelection();
+  //Selection can be number but will be converted to selection
+  if(typeof selection == "number")
+    selection = new EditorSelection(selection, selection);
+  //Array is also converted to selection object
+  else if(selection instanceof Array && !(selection instanceof EditorSelection))
+    selection = new EditorSelection(selection);
   
   //console.log("Selection:",sel);
   var text = [
@@ -577,43 +591,72 @@ EditorControler.prototype.insert = function(inserted, selection, wrap_selected, 
   //to be done!
   if(wrap_selected!=null/*&&text[1].length>0*/) {
     if(wrap_selected instanceof RegExp) {
-      //console.log("Regexping the insert.");
+    
       //Split the insertment by the insert marks $$
       inserted = inserted.split(/\${2}/);
-      //Calculate in which part the intended cursor position belongs
-      var pos_chunk = 0;   //Chunk index
-      var pos_offset = 0;  //Position from chunk beginning
-      for(var i=0, chars=0, l=inserted.length; i<l; i++) {
-        chars+=inserted[i].length;
-        if(chars>=selection) {
-          //substract the last size
-          chars-=inserted[i].length;
-          //Because the length of inserted chars shouldn't be 0, we substract 1 for
-          //every insert sequence we pass
-          pos_offset = selection-chars-i;
-
-          pos_chunk=i;
-          console.log("pos_offset = ", pos_offset);
-          console.log("pos_chunk = ", pos_offset);
-          break;
-        }  
-      }
+      
       //Match stuff in selected text
       var matches = text[1].match(wrap_selected); 
+      
+
+      //Allows to pass just a string as a parameter
+      if(typeof default_matches == "string")
+        default_matches = [default_matches];
+      //If there are default matches available, the replacing will proceed even if regexp failed 
+      if(matches==null && default_matches instanceof Array)
+        matches = [];
+
 
       if(matches!=null) {
-
+        //I'm saving myself an IF (in for loop) statement by doing this
+        if(default_matches==null)
+          default_matches = [];
+        //Remove first element of the match array as this is the one we don't need
+        matches.splice(0, 1);
         //Apply matches
-        for(var i=1; i<matches.length&&i<=inserted.length; i++) {
-          //Replace $$ at this position by match
-          inserted[i-1]+=matches[i];
+        var il = inserted.length;
+        var ml = matches.length;
+        var dl = default_matches.length;
+        //The characters are added behind the selection (also it's impossible to expand closed selection shorter than two characters)
+        selection.open = true;
+        //Number of characters from the beginning
+        var chars = 0;
+                       // -1: nothing is inserted after last fragment...
+        for(var i=0; i<il-1; i++) {
+          var insert_pos = chars + inserted[i].length +1; //+1 because the empty space after the text is considered a character
+          //Replace $$ at this position by match 
+          if(i<ml && matches[i].length>0) {
+            //shift the selection
+            selection.update(insert_pos, insert_pos, matches[i].length-1); 
+            //
+            inserted[i]+=matches[i];
+          }
+          //Try the default match if the match was empty
+          else if(i<dl && default_matches[i].length>0) {
+            //Shift the selection
+            selection.update(insert_pos, insert_pos, default_matches[i].length-1);
+            //
+            inserted[i]+=default_matches[i];
+          }
+          else {
+            //There is char decrease for every $$ fragment, because even empty
+            //fragment counts as a character
+            selection.update(chars, chars, -1);
+          }
+          //Iterate character length
+          chars+=inserted[i].length;
         }
+        //Turn the open back to false
+        selection.open = false;
+        /*
         //Recalculate cursor position
         var added = 0; //Number of characters before cursor position
         for(var i=0; i<pos_chunk; i++) {
           added+=inserted[i].length;
         }
-        selection = added+pos_offset;
+        //The selection consists of the length of previous chunks and the 
+        //Distance from last chunk
+        selection = added+pos_offset;     */
         //Join the replacement back
         text[1] = inserted.join("");
         insert_done = true;
@@ -627,7 +670,7 @@ EditorControler.prototype.insert = function(inserted, selection, wrap_selected, 
         //this is necessary to make the offset mapping same even if there are no
         //matches
         selection-=pos_chunk;
-        console.log(selection);
+      //console.log(selection);
       }    
     }
   }
@@ -645,17 +688,12 @@ EditorControler.prototype.insert = function(inserted, selection, wrap_selected, 
   //Focus in the editor
   this.input.focus();
   //Move at the end of inserted character(s)
-  //If selection wasn't overrider move relative to it
+  //If selection wasn't overriden move relative to it
   if(!selOverride) {
     if(selection==null)
       this.setSelection(text[0].length+text[1].length);
-    else if(selection instanceof Array) {
+    else
       this.setSelection(text[0].length+selection[0], text[0].length+selection[1]);
-    }
-    else {
-      console.log("Moving cursor at ", text[0].length, "+",selection, "=",text[0].length+selection);  
-      this.setSelection(text[0].length+selection);
-    }
   }
   //Otherwise, the selection is only changed if the text length changed and 
   //the change affects the selection
@@ -691,33 +729,34 @@ EditorControler.prototype.insert = function(inserted, selection, wrap_selected, 
       selOverride[0] = text[0].length;
       selOverride[1] = text[0].length+text[1].length;
   }
-
-}
-//Updates selection with regard to the number of characters added at certain offset
-EditorControler.prototype.updateSelection = function(sel, addStart, addEnd, diffLen) {
-  //First if the selection is *before* the offset it's not affected by any changes
-  if(addStart>sel[0] && addStart>sel[1])
-    return;
-    
-  var origLen = Math.abs(addEnd - addStart);
-  var newLen = origLen + diffLen;
-  var newEnd = addEnd + diffLen;
-  if(newEnd<0)
-    throw new Error("You can't delete characters that aren't selected.");
+  //Return selection of the whole inserted text
+  return new EditorSelection(text[0].length, text[0].length+text[1].length);
   
-  for(var i=0; i<=2; i++) {
-    //The changed fragment was bordering the selection
-    if(selOld[i]<=addEnd) {
-      //Then include the fragment in selection completely
-      selOld[i] = newEnd;
+  //Finds last chunk which affects the selection
+  //returns {index: chunk index, offset: offset in that chunk}
+  function findSelectionChunk(chunks, offset) {
+    for(var i=0, chars=0, l=chunks.length; i<l; i++) {
+      chars+=chunks[i].length;
+      if(chars>=offset) {
+        //substract the last size
+        chars-=chunks[i].length;
+        //Because the length of chunks chars shouldn't be 0, we substract 1 for
+        //every insert sequence we pass
+        pos_offset = offset-chars-i;
+
+        pos_chunk=i;
+      //console.log("pos_offset = ", pos_offset);
+      //console.log("pos_chunk = ", pos_offset);
+        break;
+      }  
     }
-    //The changed fragment was in the middle of selection (or after)
-    else if(selOld[i]>addEnd) {
-      //Calculate the difference in length (can be negative)
-      selOld[i] = selOld[i] + (diffLen);
-    }
+    return {
+      index: pos_chunk,
+      offset: pos_offset    
+    };
   }
 }
+
 EditorControler.prototype.textAtRange = function(start, stop) {
   if(start>stop) {
      var tmp = start;
@@ -739,7 +778,7 @@ EditorControler.prototype.animateChar = function(chars, offset, period, index) {
           index++;
           if(index>=chars.length)
             index=0;
-          console.log("Animation step #"+index+" \""+chars[index]+"\".");
+        //console.log("Animation step #"+index+" \""+chars[index]+"\".");
           //this.animateChar(chars, offset, period, index);
           _this.insert(chars[index], null, null, null, offset);
           offset[1] = offset[0] + chars[index].length;
@@ -766,13 +805,17 @@ function EditorSelection(a,b, editor) {
     this[1] = b;      
   
   if(editor instanceof EditorControler) {
-    editor.selections.push(this);
-    this.editor = editor;
+    this.attach(editor);
   }
 } 
 EditorSelection.prototype = [0,0];
 EditorSelection.prototype.editor = null;
+//This is not used yet, but will determine that the selection was destroyed completelly
 EditorSelection.prototype.valid = true;
+//This defines whether the selection eats characters added next to it
+EditorSelection.prototype.open = false;
+
+// RANGE OPERATIONS
 
 EditorSelection.prototype.update = function(addStart, addEnd, diffLen) {
   var change_begin = Math.min(addStart, addEnd);
@@ -786,9 +829,12 @@ EditorSelection.prototype.update = function(addStart, addEnd, diffLen) {
   var newLen = origLen + diffLen;
   var newEnd = change_begin + newLen;
   
-  //console.log("Orig: ",[addStart, addEnd], "\nDiff: ", diffLen, "\nResult: ",[addStart, newEnd]);
   
-  //In fact yes, you can delete unselected characters.
+//console.log("Changing range: ",[this[0], this[1]]);
+//console.log("  Add positions: ",[addStart, addEnd], "\n  Diff: ", diffLen, "\n  Result: ",[addStart, newEnd]);
+  
+  //In fact yes, you can delete unselected characters, but this should be handled
+  //Before casting this function. Basically I'm mapping backspace to delete
   if(newEnd<0)
     throw new Error("You can't delete characters that aren't selected.");
   
@@ -819,21 +865,51 @@ EditorSelection.prototype.update = function(addStart, addEnd, diffLen) {
     
     //The changed fragment was bordering the selection
                           //[NOPE] (+1, because xxx|[mmm] is still OUT of selection)
-    if(this[i]<=addEnd && this[i]>addStart) {
-      //Then include the fragment in selection completely
-      this[i] = newEnd;
+    if(this.open) {
+      if(this[i]<addEnd && this[i]>addStart) {
+        //Then include the fragment in selection completely
+        this[i] = newEnd;
+        
+      }
+      //The changed fragment was in the middle of selection (or after)
+      else if((i==1?this[i]>=addEnd:this[i]>addEnd)) {
+        
+        //Calculate the difference in length (can be negative)
+        this[i] = this[i] + (diffLen);
+        
+      }
     }
-    //The changed fragment was in the middle of selection (or after)
-    else if(this[i]>addEnd) {
-      //Calculate the difference in length (can be negative)
-      this[i] = this[i] + (diffLen);
+    else {
+      //The changed fragment was in the middle of selection (or after)
+      if(this[i]>=addStart && this[i]<addEnd) {
+        //console.log("  Middle: Shifting boundary to ", newEnd);
+        //Then include the fragment in selection completely
+        this[i] = newEnd;
+      }
+      //The changed fragment was in the middle of selection (or after)
+      else if((i==0?this[i]>=addEnd:this[i]>addEnd)) {
+        //console.log("  Border: Shifting boundary to ", this[i] + (diffLen));
+        //Calculate the difference in length (can be negative)
+        this[i] = this[i] + (diffLen);
+      }
     }
   }
-  //console.log("New range: ",[this[0], this[1]]);
+//console.log("New range: ",[this[0], this[1]]);
 }
 Object.defineProperty(EditorSelection.prototype, "sel_length", {
     get: function() {Math.abs(this[0]-this[1]);}
 });
+
+//Shift whole selection back or further
+
+EditorSelection.prototype.shift = function(offset) {
+  this[0]+=offset;
+  this[1]+=offset;
+}
+
+// TEXT OPERATIONS
+
+//Returns the text in the range of the selection
 EditorSelection.prototype.getContents = function(editor) {
   if(editor==null)
     editor = this.editor;
@@ -841,6 +917,7 @@ EditorSelection.prototype.getContents = function(editor) {
     throw new Error("No editor available to use...");
   return editor.textAtRange(this[0], this[1]);  
 }
+//Will call the editor insert function to insert text in first parameter
 EditorSelection.prototype.setContents = function(text, editor) {
   if(editor==null)
     editor = this.editor;
@@ -848,11 +925,15 @@ EditorSelection.prototype.setContents = function(text, editor) {
     throw new Error("No editor available to use...");
   return editor.insert(text, null, null, null, this);
 }
+//Getter and setter for contents
 Object.defineProperty(EditorSelection.prototype, "contents", {
     get: function() {return this.getContents();},
     set: function(txt) {return this.setContents(txt);}
 });
 
+// EDITOR OPERATIONS
+
+//Make this a user selection in the editor
 EditorSelection.prototype.apply = function(editor) {
   if(editor==null)
     editor = this.editor;
@@ -861,15 +942,30 @@ EditorSelection.prototype.apply = function(editor) {
     
   editor.setSelection(this[0], this[1]);
 }
+//If any editor is attached, delete self from the selection array
+//to surpress further updates
+//If this is not called, the selection will NOT be garbage colected
+//and WILL have a great performance impact
 EditorSelection.prototype.detach = function() {
   if(this.editor) {
     var sels = this.editor.selections;
     for(var i=0,l=sels.length; i<l; i++) {
       if(sels[i]==this) {
         sels.splice(i, 1);
+        this.editor = null;
         break;    
       }
     }
+  }
+}
+//Attach to an editor instance
+EditorSelection.prototype.attach = function(editor) {
+  if(!this.editor) {
+    editor.selections.push(this);
+    this.editor = editor;
+  }
+  else if(editor!=this.editor) {
+    console.warn("This instance already has a editor attached, you must detach it first. This is not implicit!");
   }
 }
 //Disable array functions

@@ -15,7 +15,15 @@ var WARN_IMG_WIDTH = 650;
 
 /** CREATING DOM REFFERENCES **/
 //Create div for pasted images
-var paste = document.createElement("div");
+var paste = $("<div contenteditable=true position=fixed ></div>").css({ 
+    top : "-20px";
+    "max-height": "15px";
+    overflow: "hidden";
+}).appendTo("body")
+
+//initial code:
+/*
+ * var paste = document.createElement("div");
 paste.setAttribute("contenteditable", "true");
 paste.style.position = "fixed";
 paste.style.top = "-20px";
@@ -23,16 +31,18 @@ paste.style.maxWidth =
 paste.style.maxHeight = "15px";
 paste.style.overflow = "hidden";
 document.body.appendChild(paste);
+*/
+    
 
 //Get the main input refference (will be used a lot)
-var input = document.getElementById("wmd-input");
+var input = $("#wmd-input");
 var editor = new EditorControler(input);
 
 //Fkey (whatever it is)
 
 var fkey;
 try {
- fkey = document.getElementById("fkey").value;
+ fkey = $("#fkey").val();
 }
 catch(e) {
  fkey = -1;

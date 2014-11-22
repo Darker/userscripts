@@ -3,7 +3,7 @@
 // @namespace   whatever
 // @description Allows you to paste any image directly into SE question textarea
 // @include     */questions/ask
-// @version     2014.11.20.12.18
+// @version     2014.11.22.05.03
 // @updateURL   https://github.com/Darker/userscripts/raw/master/Paste_images_in_SE_sites.user.js
 // @downloadURL https://github.com/Darker/userscripts/raw/master/Paste_images_in_SE_sites.user.js
 // @icon        http://i.stack.imgur.com/UlaAb.png
@@ -767,7 +767,7 @@ EditorControler.prototype.textAtRange = function(start, stop) {
 }
 
 EditorControler.prototype.animateChar = function(chars, offset, period, index) {
-  // [  "—",  "\\",   "|",   "/"]
+  // [  "â€”",  "\\",   "|",   "/"]
   // ["   ", ".  ", ".. ", "..."]
   //This is the first animation
   if(index==null) {
